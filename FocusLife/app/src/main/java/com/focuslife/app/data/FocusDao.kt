@@ -38,5 +38,18 @@ import kotlinx.coroutines.flow.Flow
     @Query("DELETE FROM sleep_schedule") suspend fun clearSleep()
     @Query("DELETE FROM user_settings") suspend fun clearSettings()
     @Query("DELETE FROM extensions") suspend fun clearExtensions()
-    @Transaction suspend fun clearAll() { clearUsage(); clearSummaries(); clearLimits(); clearSessions(); clearGoals(); clearCompletions(); clearSleep(); clearSettings(); clearExtensions() }
+    @Query("DELETE FROM short_video_stats") suspend fun clearShortVideoStats()
+    @Query("DELETE FROM block_schedules") suspend fun clearSchedules()
+    @Transaction suspend fun clearAll() { clearUsage(); clearSummaries(); clearLimits(); clearSessions(); clearGoals(); clearCompletions(); clearSleep(); clearSettings(); clearExtensions(); clearShortVideoStats(); clearSchedules() }
+
+    @Query("INSERT OR IGNORE INTO short_video_stats (date, packageName, videos, blocked, feedMs) VALUES (:date, :packageName, 0, 0, 0)") suspend fun ensureStat(date: String, packageName: String)
+    @Query("UPDATE short_video_stats SET videos = videos + :videos, blocked = blocked + :blocked, feedMs = feedMs + :feedMs WHERE date = :date AND packageName = :packageName") suspend fun addToStat(date: String, packageName: String, videos: Int, blocked: Int, feedMs: Long)
+    @Transaction suspend fun bumpStat(date: String, packageName: String, videos: Int, blocked: Int, feedMs: Long) { ensureStat(date, packageName); addToStat(date, packageName, videos, blocked, feedMs) }
+    @Query("SELECT * FROM short_video_stats WHERE date = :date") fun shortVideoStats(date: String): Flow<List<ShortVideoStatEntity>>
+    @Query("SELECT * FROM short_video_stats WHERE date BETWEEN :start AND :end ORDER BY date") fun shortVideoStatsRange(start: String, end: String): Flow<List<ShortVideoStatEntity>>
+
+    @Query("SELECT * FROM block_schedules ORDER BY startMinute") fun schedules(): Flow<List<BlockScheduleEntity>>
+    @Insert suspend fun addSchedule(row: BlockScheduleEntity): Long
+    @Update suspend fun updateSchedule(row: BlockScheduleEntity)
+    @Delete suspend fun deleteSchedule(row: BlockScheduleEntity)
 }

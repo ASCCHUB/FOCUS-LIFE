@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.focuslife.app.data.*
+import com.focuslife.app.domain.BlockerConfig
 import com.focuslife.app.domain.UsageMath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -23,6 +24,17 @@ import javax.inject.Inject
     val weekly = dao.summaries(LocalDate.now().minusDays(6).toString(), today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val light = preferences.lightTheme.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
     val permission = MutableStateFlow(false)
+    /** Null until loaded from storage (used to decide whether to show onboarding). */
+    val blocker = preferences.blocker.stateIn<BlockerConfig?>(viewModelScope, SharingStarted.Eagerly, null)
+    val shortVideoToday = dao.shortVideoStats(today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val shortVideoWeek = dao.shortVideoStatsRange(LocalDate.now().minusDays(6).toString(), today).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val schedules = dao.schedules().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun updateBlocker(transform: (BlockerConfig) -> BlockerConfig) { viewModelScope.launch { preferences.updateBlocker(transform) } }
+    fun pauseFor(minutes: Int) = updateBlocker { it.copy(pauseUntil = System.currentTimeMillis() + minutes * 60_000L) }
+    fun resume() = updateBlocker { it.copy(pauseUntil = 0L) }
+    fun addSchedule(label: String, start: Int, end: Int, days: Int) { viewModelScope.launch { dao.addSchedule(BlockScheduleEntity(label = label.ifBlank { "Focus time" }, startMinute = start, endMinute = end, daysMask = days)) } }
+    fun toggleSchedule(row: BlockScheduleEntity, enabled: Boolean) { viewModelScope.launch { dao.updateSchedule(row.copy(enabled = enabled)) } }
+    fun deleteSchedule(row: BlockScheduleEntity) { viewModelScope.launch { dao.deleteSchedule(row) } }
     init { viewModelScope.launch {
         if (settings.first() == null) dao.putSettings(UserSettingsEntity())
         if (goals.first().isEmpty()) listOf("Quran" to 20, "English Learning" to 20, "Professional Skills" to 30, "Exercise" to 20).forEach { dao.addGoal(GoalEntity(name = it.first, targetMinutes = it.second)) }
@@ -41,5 +53,5 @@ import javax.inject.Inject
     fun finish(session: FocusSessionEntity) { viewModelScope.launch { dao.updateSession(session.copy(state = "COMPLETED", endedAt = System.currentTimeMillis(), resumedAtElapsedRealtime = null, elapsedBeforeRunMs = session.plannedMs)) } }
     fun cancel(session: FocusSessionEntity) { viewModelScope.launch { dao.updateSession(session.copy(state = "CANCELLED", endedAt = System.currentTimeMillis(), resumedAtElapsedRealtime = null)) } }
     fun grantExtension() { viewModelScope.launch { if (settings.value?.extensionEnabled != false) dao.grantExtension(ExtensionUsageEntity(LocalDate.now().toString())) } }
-    fun deleteData() { viewModelScope.launch { dao.clearAll(); preferences.clear(); dao.putSettings(UserSettingsEntity(monitoringEnabled = false)) } }
+    fun deleteData() { viewModelScope.launch { dao.clearAll(); preferences.clear(); preferences.updateBlocker { it.copy(onboardingDone = true) }; dao.putSettings(UserSettingsEntity(monitoringEnabled = false)) } }
 }

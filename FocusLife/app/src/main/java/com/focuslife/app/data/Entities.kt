@@ -20,3 +20,7 @@ data class SleepScheduleEntity(@PrimaryKey val id: Int = 1, val bedtime: String 
 data class UserSettingsEntity(@PrimaryKey val id: Int = 1, val dailyLimitMinutes: Int = 60, val enforcement: String = "MODERATE", val extensionEnabled: Boolean = true, val monitoringEnabled: Boolean = true)
 @Entity(tableName = "extensions")
 data class ExtensionUsageEntity(@PrimaryKey val date: String, val grantedMinutes: Int = 5)
+@Entity(tableName = "short_video_stats", primaryKeys = ["date", "packageName"])
+data class ShortVideoStatEntity(val date: String, val packageName: String, val videos: Int = 0, val blocked: Int = 0, val feedMs: Long = 0)
+@Entity(tableName = "block_schedules")
+data class BlockScheduleEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val label: String, val startMinute: Int, val endMinute: Int, val daysMask: Int = 127, val enabled: Boolean = true)
