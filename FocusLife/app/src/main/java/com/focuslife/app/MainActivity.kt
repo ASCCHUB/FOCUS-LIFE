@@ -11,12 +11,13 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -46,6 +47,8 @@ import androidx.navigation.compose.rememberNavController
 import com.focuslife.app.data.SleepScheduleEntity
 import com.focuslife.app.domain.UsageMath
 import com.focuslife.app.service.FocusAccessibilityService
+import com.focuslife.app.ui.Amber
+import com.focuslife.app.ui.FocusLifeTheme
 import com.focuslife.app.ui.FocusViewModel
 import com.focuslife.app.worker.UsageWorker
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,11 +59,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 
-private val dark = Color(0xFF080A12)
-private val card = Color(0xFF111827)
-private val green = Color(0xFF34D399)
-private val amber = Color(0xFFF59E0B)
-private val gray = Color(0xFF9CA3AF)
+private val green: Color @Composable get() = MaterialTheme.colorScheme.primary
+private val amber: Color get() = Amber
+private val gray: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 private val monitored = listOf("YouTube" to "com.google.android.youtube", "Instagram" to "com.instagram.android", "Facebook" to "com.facebook.katana", "TikTok" to "com.zhiliaoapp.musically", "X" to "com.twitter.android", "Snapchat" to "com.snapchat.android")
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
@@ -98,7 +99,14 @@ class PermissionActions(val openUsage: () -> Unit, val openAccessibility: () -> 
             val light by vm.light.collectAsState()
             val usageOn by vm.permission.collectAsState()
             val perms = PermissionState(usageOn, accessibilityOn, notificationsOn)
-            MaterialTheme(colorScheme = if (light) lightColorScheme(primary = Color(0xFF047857)) else darkColorScheme(primary = green, background = dark, surface = card, onBackground = Color.White, onSurface = Color.White)) {
+            LaunchedEffect(light) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                enableEdgeToEdge(
+                    statusBarStyle = if (light) SystemBarStyle.light(transparent, transparent) else SystemBarStyle.dark(transparent),
+                    navigationBarStyle = if (light) SystemBarStyle.light(transparent, transparent) else SystemBarStyle.dark(transparent),
+                )
+            }
+            FocusLifeTheme(light) {
                 val nav = rememberNavController()
                 val current = nav.currentBackStackEntryAsState().value?.destination?.route
                 Scaffold(
@@ -180,7 +188,7 @@ class PermissionActions(val openUsage: () -> Unit, val openAccessibility: () -> 
     }
 }
 @Composable private fun Tile(title: String, value: String, subtitle: String = "") {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = MaterialTheme.shapes.large, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp)) {
             Text(title, color = gray)
             Spacer(Modifier.height(8.dp))
@@ -199,7 +207,7 @@ private fun clock(ms: Long): String { val s = ms / 1000; return "%02d:%02d".form
 }
 
 @Composable private fun PermissionsCard(perms: PermissionState, actions: PermissionActions) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = MaterialTheme.shapes.large, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Section(if (perms.allGranted) "Permissions" else "Finish setup")
             PermissionRow("Usage Access", "Required. Lets Focus Life measure your screen time.", perms.usage, "Grant", actions.openUsage)
