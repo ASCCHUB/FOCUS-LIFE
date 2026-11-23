@@ -184,7 +184,7 @@ private val tabs = listOf(
                     onGoals = { nav.navigate("Goals") }, onSleep = { nav.navigate("Sleep") }, onDetection = { nav.navigate("Detection") })
             }
             composable("Rules") { RulesScreen(vm, onDetection = { nav.navigate("Detection") }) }
-            composable("Detection") { DetectionCheckScreen() }
+            composable("Detection") { DetectionCheckScreen(vm) }
             composable("Schedules") { SchedulesScreen(vm) }
             composable("Goals") { GoalsScreen(vm) }
             composable("Sleep") { SleepScreen(vm) }

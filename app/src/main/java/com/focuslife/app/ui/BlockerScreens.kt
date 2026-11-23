@@ -37,6 +37,7 @@ private val limitApps = listOf(
     val limits by vm.limits.collectAsState(); val settings by vm.settings.collectAsState()
     var sliderValue by remember(settings?.dailyLimitMinutes) { mutableFloatStateOf((settings?.dailyLimitMinutes ?: 60).toFloat()) }
     Page("App Control") {
+        PageTip(vm, "apps")
         if (!perms.required) PermissionsCard(perms, actions, showAll = false)
 
         Section("Block short videos in")
@@ -75,6 +76,7 @@ private val limitApps = listOf(
     val cfg = vm.blocker.collectAsState().value ?: BlockerConfig()
     var domain by remember { mutableStateOf("") }
     Page("Blocking rules") {
+        PageTip(vm, "rules")
         Section("Curious mode")
         AppCard {
             Stepper("Reels allowed", cfg.curiousCount, 1..5) { v -> vm.updateBlocker { it.copy(curiousCount = v) } }
@@ -129,6 +131,7 @@ private val limitApps = listOf(
     var days by remember { mutableIntStateOf(ScheduleMath.ALL_DAYS) }
     var error by remember { mutableStateOf("") }
     Page("Focus schedules", "Reels are fully blocked during these times, even if paused.") {
+        PageTip(vm, "schedules")
         if (schedules.isEmpty()) Text("No schedules yet.", color = Muted)
         schedules.forEach { s ->
             AppCard {
@@ -237,12 +240,13 @@ private val limitApps = listOf(
 }
 
 /** Shows what the blocker sees, so detection rules can be tuned for a specific phone and app version. */
-@Composable fun DetectionCheckScreen() {
+@Composable fun DetectionCheckScreen(vm: FocusViewModel) {
     var enabled by remember { mutableStateOf(FocusAccessibilityService.debugEnabled) }
     var lines by remember { mutableStateOf(FocusAccessibilityService.debugSnapshot()) }
     val clipboard = LocalClipboardManager.current
     LaunchedEffect(enabled) { while (true) { lines = FocusAccessibilityService.debugSnapshot(); delay(1_000) } }
     Page("Detection check", "See what the blocker detects in each app.") {
+        PageTip(vm, "detection")
         AppCard {
             Text("1. Turn on recording below.\n2. Open X (or another app) and scroll a few videos.\n3. Come back here, tap Copy, and send the text for tuning.", color = Muted)
             SwitchRow("Record what the blocker sees", "Only kept in memory; turn off when done", enabled) { on ->

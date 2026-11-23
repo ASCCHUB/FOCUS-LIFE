@@ -177,3 +177,36 @@ fun clock(ms: Long): String { val s = ms / 1000; return "%02d:%02d".format(s / 6
         Text("›", style = MaterialTheme.typography.titleLarge, color = Muted)
     }
 }
+
+/** One-time explanation shown at the top of each page until the user taps "Got it". */
+object Tips {
+    val text = mapOf(
+        "home" to "Your control centre. Pick how reels are blocked: Block All (none at all), Curious (a few, then a break) or Timed (watch for a while, then a break). The green strip shows today's focus sessions, reels blocked and scroll time. Pause turns blocking off for a short time. Payment mode switches the blocker off when a banking app refuses to open.",
+        "apps" to "Top list: where reels and shorts are blocked. Only the short-video part is blocked; the rest of each app (normal YouTube videos, chats, search) keeps working. Bottom list: the daily time limit, which counts an app's whole time, and what happens when your minutes run out. These two controls are separate.",
+        "focus" to "A timer for work or study. While a session runs, ALL reels and shorts are blocked (even if blocking is paused), and opening an app from your daily-limit list shows a \"Return to your focus\" screen. Finished sessions appear in your stats.",
+        "stats" to "How many reels were blocked, how many short videos you watched, and your scroll time and screen time for the last 7 days.",
+        "settings" to "Permissions, blocking rules (numbers for each mode, X and browsers), focus schedules, daily goals, sleep routine, and a detection check for troubleshooting.",
+        "rules" to "Fine-tune the modes: how many reels Curious allows, break lengths, Timed minutes, the X video limit (Strict = only 1 video), and websites to block in your browser.",
+        "schedules" to "Times when reels are fully blocked automatically, for example sleep, study or prayer. A schedule can cross midnight (22:30 – 06:30).",
+        "goals" to "Track daily habits. Tap +5 min as you make progress. Remove goals you don't need.",
+        "sleep" to "Save your bedtime and wake time. Tip: add a Sleep focus schedule to block reels at night.",
+        "detection" to "For troubleshooting only: records what the blocker sees in each app, so detection can be fixed if an app isn't blocked.",
+    )
+}
+
+@Composable fun PageTip(vm: FocusViewModel, key: String) {
+    val seen = vm.tipsSeen.collectAsState().value ?: return
+    val body = Tips.text[key] ?: return
+    if (key in seen) return
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("💡 How this page works", fontWeight = FontWeight.Bold)
+            Text(body)
+            TextButton(onClick = { vm.markTipSeen(key) }, modifier = Modifier.align(Alignment.End)) { Text("Got it") }
+        }
+    }
+}

@@ -44,7 +44,7 @@ class BlockPolicy {
     private fun minutesLeft(until: Long, now: Long) = ((until - now + 59_999L) / 60_000L).coerceAtLeast(1)
 
     private fun hardBlockReason(scheduleActive: Boolean) =
-        if (scheduleActive) "Reels and shorts are blocked during your scheduled focus time." else "Block All is on: no reels or shorts."
+        if (scheduleActive) "Reels and shorts are blocked during your focus time." else "Block All is on: no reels or shorts."
 
     fun onEnterFeed(pkg: String, cfg: BlockerConfig, now: Long, scheduleActive: Boolean): Decision {
         if (!applies(pkg, cfg, now, scheduleActive)) return Decision.Allow

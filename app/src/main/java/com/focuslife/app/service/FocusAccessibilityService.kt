@@ -70,6 +70,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
     @Volatile private var config = BlockerConfig()
     @Volatile private var schedules: List<ScheduleWindow> = emptyList()
+    @Volatile private var focusRunning = false
     private var foreground: String? = null
     private var lastActionAt = 0L
     private var lastTickAt = 0L
@@ -93,6 +94,7 @@ class FocusAccessibilityService : AccessibilityService() {
         overlay = BlockOverlay(this)
         scope.launch { prefs.blocker.collect { config = it } }
         scope.launch { db.dao().schedules().collect { list -> schedules = list.map { ScheduleWindow(it.startMinute, it.endMinute, it.daysMask, it.enabled) } } }
+        scope.launch { db.dao().sessions().collect { list -> focusRunning = list.any { it.state == "RUNNING" } } }
         handler.postDelayed(ticker, TICK_MS)
     }
 
@@ -124,7 +126,8 @@ class FocusAccessibilityService : AccessibilityService() {
         if (overlay.isShowing && !overlay.isFresh && !ShortVideoRules.apps.containsKey(pkg)) overlay.dismiss()
     }
 
-    private fun scheduleActive() = ScheduleMath.isActive(schedules, LocalDateTime.now())
+    /** A focus schedule or a running focus session: reels are fully blocked, even if paused. */
+    private fun scheduleActive() = focusRunning || ScheduleMath.isActive(schedules, LocalDateTime.now())
     private fun inCooldownAfterAction(now: Long) = now - lastActionAt < 1_500L
 
     // ---------- Short-video apps ----------

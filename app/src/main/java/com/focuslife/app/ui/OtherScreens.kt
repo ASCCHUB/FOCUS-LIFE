@@ -32,6 +32,7 @@ import java.util.Date
         while (active?.state == "RUNNING") { delay(1000); now = SystemClock.elapsedRealtime() }
     }
     Page("Focus Mode") {
+        PageTip(vm, "focus")
         if (active == null) {
             Text("Choose your focus duration")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -40,7 +41,7 @@ import java.util.Date
             }
             OutlinedTextField(value = custom, onValueChange = { custom = it.filter(Char::isDigit).take(3) }, label = { Text("Custom minutes (1–240)") }, singleLine = true)
             Button(onClick = { vm.startFocus(custom.toIntOrNull()?.coerceIn(1, 240) ?: 25) }) { Text("Start custom session") }
-            Text("During a focus session, opening a limited app shows a reminder to get back to work.", color = Muted, style = MaterialTheme.typography.bodySmall)
+            Text("While a session runs, all reels and shorts are blocked and limited apps show a \"Return to your focus\" screen.", color = Muted, style = MaterialTheme.typography.bodySmall)
         } else {
             val elapsed = UsageMath.elapsed(active.plannedMs, active.elapsedBeforeRunMs, active.resumedAtElapsedRealtime, now)
             val remaining = (active.plannedMs - elapsed).coerceAtLeast(0)
@@ -68,6 +69,7 @@ import java.util.Date
     val weekly by vm.weekly.collectAsState(); val usage by vm.usage.collectAsState(); val sessions by vm.sessions.collectAsState()
     val reelsToday by vm.shortVideoToday.collectAsState(); val reelsWeek by vm.shortVideoWeek.collectAsState()
     Page("Statistics") {
+        PageTip(vm, "stats")
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.weight(1f)) { Tile("Reels blocked today", "${reelsToday.sumOf { it.blocked }}") }
             Box(Modifier.weight(1f)) { Tile("Videos watched", "${reelsToday.sumOf { it.videos }}") }
@@ -128,6 +130,7 @@ import java.util.Date
     val goals by vm.goals.collectAsState(); val completions by vm.completions.collectAsState()
     var name by remember { mutableStateOf("") }; var target by remember { mutableStateOf("20") }
     Page("Daily Goals") {
+        PageTip(vm, "goals")
         goals.forEach { goal ->
             val completed = completions.firstOrNull { it.goalId == goal.id }?.completedMinutes ?: 0
             AppCard {
@@ -136,6 +139,8 @@ import java.util.Date
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { vm.progress(goal, (completed - 5).coerceAtLeast(0)) }) { Text("−5 min") }
                     Button(onClick = { vm.progress(goal, completed + 5) }) { Text("+5 min") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { vm.removeGoal(goal) }) { Text("Remove") }
                 }
                 var targetEdit by remember(goal.id) { mutableStateOf(goal.targetMinutes.toString()) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,6 +164,7 @@ import java.util.Date
     val scope = rememberCoroutineScope()
     val timeFormat = Regex("([01]\\d|2[0-3]):[0-5]\\d")
     Page("Sleep Routine", "A routine planner, not a medical sleep tracker.") {
+        PageTip(vm, "sleep")
         OutlinedTextField(value = bed, onValueChange = { bed = it.take(5) }, label = { Text("Bedtime (HH:mm)") }, singleLine = true)
         OutlinedTextField(value = wake, onValueChange = { wake = it.take(5) }, label = { Text("Wake time (HH:mm)") }, singleLine = true)
         Button(onClick = {
@@ -175,6 +181,7 @@ import java.util.Date
     val cfg = vm.blocker.collectAsState().value ?: BlockerConfig()
     var confirm by remember { mutableStateOf(false) }
     Page("Settings") {
+        PageTip(vm, "settings")
         PermissionsCard(perms, actions)
         AppCard {
             ClickableRow("Blocking rules", "Curious & Timed limits, X videos, browser blocker", onRules)
@@ -192,6 +199,7 @@ import java.util.Date
             SwitchRow("Light theme", null, light) { vm.toggleTheme() }
             if (cfg.isPaused(System.currentTimeMillis())) OutlinedButton(onClick = vm::resume) { Text("Resume blocking now") }
         }
+        TextButton(onClick = vm::resetTips) { Text("Show page guides again") }
         Text("Privacy first: your data stays on this phone. No account, analytics or ads.", color = Muted)
         OutlinedButton(onClick = { confirm = true }) { Text("Delete all local data") }
         if (confirm) AlertDialog(

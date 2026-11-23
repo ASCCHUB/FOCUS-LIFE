@@ -8,6 +8,7 @@ import com.focuslife.app.domain.BlockerConfig
 import com.focuslife.app.domain.LimitAction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -30,11 +31,19 @@ class Preferences @Inject constructor(@ApplicationContext private val context: C
     private val blockedDomains = stringSetPreferencesKey("blocked_domains")
     private val limitAction = stringPreferencesKey("limit_action")
     private val onboardingDone = booleanPreferencesKey("onboarding_done")
+    private val seenTips = stringSetPreferencesKey("seen_tips")
+    private val goalsSeededKey = booleanPreferencesKey("goals_seeded")
 
     val lightTheme = context.store.data.map { it[light] ?: false }
     val blocker: Flow<BlockerConfig> = context.store.data.map { read(it) }
 
+    val tipsSeen: Flow<Set<String>> = context.store.data.map { it[seenTips] ?: emptySet() }
+
     suspend fun setLight(value: Boolean) { context.store.edit { it[light] = value } }
+    suspend fun markTipSeen(key: String) { context.store.edit { it[seenTips] = (it[seenTips] ?: emptySet()) + key } }
+    suspend fun resetTips() { context.store.edit { it.remove(seenTips) } }
+    suspend fun goalsSeeded(): Boolean = context.store.data.first()[goalsSeededKey] ?: false
+    suspend fun setGoalsSeeded() { context.store.edit { it[goalsSeededKey] = true } }
     suspend fun updateBlocker(transform: (BlockerConfig) -> BlockerConfig) { context.store.edit { prefs -> write(prefs, transform(read(prefs))) } }
     suspend fun clear() { context.store.edit { it.clear() } }
 

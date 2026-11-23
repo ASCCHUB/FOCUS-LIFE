@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
     @Query("SELECT * FROM goals WHERE archived = 0 ORDER BY id") fun goals(): Flow<List<GoalEntity>>
     @Insert suspend fun addGoal(row: GoalEntity): Long
     @Update suspend fun updateGoal(row: GoalEntity)
+    @Query("DELETE FROM goals WHERE id NOT IN (SELECT MIN(id) FROM goals GROUP BY name)") suspend fun removeDuplicateGoals()
     @Query("SELECT * FROM goal_completions WHERE date = :date") fun completions(date: String): Flow<List<GoalCompletionEntity>>
     @Query("SELECT * FROM goal_completions WHERE date BETWEEN :start AND :end") fun completionRange(start: String, end: String): Flow<List<GoalCompletionEntity>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putCompletion(row: GoalCompletionEntity)

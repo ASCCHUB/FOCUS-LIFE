@@ -36,10 +36,20 @@ import javax.inject.Inject
     fun toggleSchedule(row: BlockScheduleEntity, enabled: Boolean) { viewModelScope.launch { dao.updateSchedule(row.copy(enabled = enabled)) } }
     fun deleteSchedule(row: BlockScheduleEntity) { viewModelScope.launch { dao.deleteSchedule(row) } }
     init { viewModelScope.launch {
-        if (settings.first() == null) dao.putSettings(UserSettingsEntity())
-        if (goals.first().isEmpty()) listOf("Quran" to 20, "English Learning" to 20, "Professional Skills" to 30, "Exercise" to 20).forEach { dao.addGoal(GoalEntity(name = it.first, targetMinutes = it.second)) }
+        // Read the database itself (not the UI state, which starts empty) so nothing is re-created on every start.
+        if (dao.settings().first() == null) dao.putSettings(UserSettingsEntity())
+        dao.removeDuplicateGoals()
+        if (!preferences.goalsSeeded()) {
+            if (dao.goals().first().isEmpty()) listOf("Quran" to 20, "English Learning" to 20, "Professional Skills" to 30, "Exercise" to 20).forEach { dao.addGoal(GoalEntity(name = it.first, targetMinutes = it.second)) }
+            preferences.setGoalsSeeded()
+        }
         refresh()
     } }
+    /** Null until loaded, so page tips don't flash. */
+    val tipsSeen = preferences.tipsSeen.stateIn<Set<String>?>(viewModelScope, SharingStarted.Eagerly, null)
+    fun markTipSeen(key: String) { viewModelScope.launch { preferences.markTipSeen(key) } }
+    fun resetTips() { viewModelScope.launch { preferences.resetTips() } }
+    fun removeGoal(goal: GoalEntity) { viewModelScope.launch { dao.updateGoal(goal.copy(archived = true)) } }
     fun refresh() { viewModelScope.launch { permission.value = usageRepository.permissionGranted(); if (permission.value) usageRepository.refresh() } }
     fun setLimit(minutes: Int) { viewModelScope.launch { dao.putSettings((settings.value ?: UserSettingsEntity()).copy(dailyLimitMinutes = minutes)) } }
     fun toggleApp(pkg: String, enabled: Boolean) { viewModelScope.launch { dao.putLimit(AppLimitEntity(pkg, enabled)); refresh() } }

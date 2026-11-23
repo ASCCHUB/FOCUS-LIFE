@@ -37,6 +37,7 @@ import java.util.Date
     var paymentDialog by remember { mutableStateOf(false) }
 
     Page("Focus Life", "Reclaim your focus today.") {
+        PageTip(vm, "home")
         if (!perms.allGranted || !perms.serviceRunning) PermissionsCard(perms, actions, showAll = false)
 
         StatusRing(cfg.mode, paused)
@@ -185,13 +186,8 @@ private fun modeSummary(cfg: BlockerConfig) = when (cfg.mode) {
 
 @Composable private fun GoalsSummary(vm: FocusViewModel, onGoals: () -> Unit) {
     val goals by vm.goals.collectAsState(); val completions by vm.completions.collectAsState()
-    Section("Daily goals")
+    val done = goals.count { goal -> (completions.firstOrNull { it.goalId == goal.id }?.completedMinutes ?: 0) >= goal.targetMinutes }
     AppCard(Modifier.clickable(onClick = onGoals)) {
-        if (goals.isEmpty()) Text("No goals yet. Tap to add one.", color = Muted)
-        goals.forEach { goal ->
-            val completed = completions.firstOrNull { it.goalId == goal.id }?.completedMinutes ?: 0
-            Row { Text(goal.name, Modifier.weight(1f)); Text("$completed / ${goal.targetMinutes} min", color = Muted) }
-            LinearProgressIndicator(progress = { (completed.toFloat() / goal.targetMinutes.coerceAtLeast(1)).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-        }
+        ClickableRow("Daily goals", if (goals.isEmpty()) "Tap to add a goal" else "$done of ${goals.size} done today", onGoals)
     }
 }
