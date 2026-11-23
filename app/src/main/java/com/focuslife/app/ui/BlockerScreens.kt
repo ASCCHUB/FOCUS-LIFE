@@ -53,7 +53,7 @@ private val limitApps = listOf(
 
         Section("Daily time limit")
         AppCard {
-            Text("These apps count toward your daily entertainment allowance (all of their time, not only reels).", color = Muted, style = MaterialTheme.typography.bodySmall)
+            Text("These apps count toward your daily entertainment allowance: ALL of their time, not only reels. Leave YouTube off here if you only want Shorts blocked.", color = Muted, style = MaterialTheme.typography.bodySmall)
             limitApps.forEach { (name, pkg) ->
                 val installed = isInstalled(pkg)
                 SwitchRow(name, if (installed) null else "Not installed", checked = limits.any { it.packageName == pkg && it.enabled }, enabled = installed) { vm.toggleApp(pkg, it) }

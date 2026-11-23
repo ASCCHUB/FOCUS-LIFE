@@ -149,7 +149,11 @@ class ShortVideoDetector(private val screenHeight: () -> Int) {
     /** Walks the visible screen (bounded) looking for a feed element. */
     private fun scan(root: AccessibilityNodeInfo?, rule: AppRule, collect: Boolean): Boolean {
         if (root == null) return false
-        val screen = screenHeight().coerceAtLeast(1)
+        // Measure against the app window: a real reels/shorts player fills (almost) all of it,
+        // while previews such as YouTube's Shorts shelf on the home page don't.
+        val window = Rect().also { root.getBoundsInScreen(it) }
+        val windowH = (if (window.height() > 0) window.height() else screenHeight()).coerceAtLeast(1)
+        val windowW = window.width().coerceAtLeast(1)
         val queue = ArrayDeque<AccessibilityNodeInfo>()
         queue.add(root)
         val seen = LinkedHashSet<String>()
@@ -162,12 +166,9 @@ class ShortVideoDetector(private val screenHeight: () -> Int) {
             val id = node.viewIdResourceName
             if (id != null && node.isVisibleToUser) {
                 if (collect && seen.size < 30) seen += id.substringAfter(":id/")
-                if (!found) {
-                    if (id in rule.feedViewIds) found = true
-                    else if (rule.idHints.any { id.contains(it, ignoreCase = true) }) {
-                        node.getBoundsInScreen(rect)
-                        if (rect.height() >= screen * 0.5) found = true
-                    }
+                if (!found && (id in rule.feedViewIds || rule.idHints.any { id.contains(it, ignoreCase = true) })) {
+                    node.getBoundsInScreen(rect)
+                    if (rect.height() >= windowH * FULL_SCREEN && rect.width() >= windowW * 0.8) found = true
                 }
             }
             if (found && !collect) break
@@ -181,5 +182,7 @@ class ShortVideoDetector(private val screenHeight: () -> Int) {
         const val DEBOUNCE_MS = 700L
         const val ID_CHECK_MS = 600L
         const val MAX_NODES = 400
+        /** Share of the window height a feed element must cover. */
+        const val FULL_SCREEN = 0.7
     }
 }

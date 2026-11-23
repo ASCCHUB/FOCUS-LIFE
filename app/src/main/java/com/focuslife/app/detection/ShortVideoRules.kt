@@ -24,7 +24,7 @@ object ShortVideoRules {
     val apps: Map<String, AppRule> = listOf(
         AppRule(BlockerConfig.YOUTUBE, "YouTube Shorts",
             ids(BlockerConfig.YOUTUBE, "reel_recycler", "reel_player_page_container", "reel_watch_player", "shorts_container"),
-            idHints = listOf("reel_", "shorts_player"), useScrollHeuristic = false),
+            idHints = listOf("reel_player", "reel_watch", "shorts_player"), useScrollHeuristic = false),
         AppRule(BlockerConfig.INSTAGRAM, "Instagram Reels",
             ids(BlockerConfig.INSTAGRAM, "clips_viewer_view_pager", "clips_viewer_container", "root_clips_layout"),
             idHints = listOf("clips_viewer", "clips_video")),
