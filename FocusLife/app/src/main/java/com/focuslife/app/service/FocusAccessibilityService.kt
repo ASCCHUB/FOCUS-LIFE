@@ -34,6 +34,28 @@ class FocusAccessibilityService : AccessibilityService() {
     companion object {
         @Volatile var running = false
             private set
+        @Volatile private var instance: java.lang.ref.WeakReference<FocusAccessibilityService>? = null
+
+        /** Detection check screen: when on, the service keeps the last lines of what it sees. */
+        @Volatile var debugEnabled = false
+        private val debugLines = ArrayDeque<String>()
+        fun debugSnapshot(): List<String> = synchronized(debugLines) { debugLines.toList() }
+        fun clearDebug() = synchronized(debugLines) { debugLines.clear() }
+        internal fun log(line: String) {
+            if (!debugEnabled) return
+            val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+            synchronized(debugLines) {
+                debugLines.addLast("$time $line")
+                while (debugLines.size > 60) debugLines.removeFirst()
+            }
+        }
+
+        /** Payment mode: the service switches itself off so banking apps don't see an active accessibility service. */
+        fun turnOffForPayment(): Boolean {
+            val service = instance?.get() ?: return false
+            service.disableSelf()
+            return true
+        }
         private const val TICK_MS = 5_000L
         private val TRANSIENT = setOf("com.android.systemui", "com.google.android.inputmethod.latin", "com.samsung.android.honeyboard", "com.touchtype.swiftkey")
     }
@@ -65,6 +87,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         running = true
+        instance = java.lang.ref.WeakReference(this)
         db = FocusDatabase.get(applicationContext)
         prefs = Preferences(applicationContext)
         overlay = BlockOverlay(this)
@@ -103,7 +126,8 @@ class FocusAccessibilityService : AccessibilityService() {
     // ---------- Short-video apps ----------
 
     private fun handleShortVideo(e: AccessibilityEvent, pkg: String, now: Long) {
-        val result = detector.onEvent(e, { rootInActiveWindow }, now)
+        val result = detector.onEvent(e, { rootInActiveWindow }, now, debugEnabled)
+        if (debugEnabled && result.debug != null) log("${pkg.substringAfterLast('.')} ${result.debug} → feed=${result.inFeed}${if (result.entered) " ENTERED" else ""}${if (result.newVideo) " NEW-VIDEO" else ""}")
         if (!result.inFeed || inCooldownAfterAction(now)) return
         val cfg = config
         val scheduled = scheduleActive()
@@ -118,6 +142,11 @@ class FocusAccessibilityService : AccessibilityService() {
         if (!::overlay.isInitialized) return
         val pkg = foreground ?: return
         val now = System.currentTimeMillis()
+        // We only receive events from watched apps, so check whether the user has left this one.
+        if (rootInActiveWindow?.packageName?.toString() != pkg) {
+            flushFeedTime(); foreground = null; detector.onForeground(""); lastTickAt = 0L
+            return
+        }
         if (!detector.isInFeed(pkg)) { lastTickAt = 0L; return }
         if (lastTickAt == 0L) { lastTickAt = now; return }
         val delta = (now - lastTickAt).coerceIn(0L, TICK_MS * 2)
@@ -128,7 +157,12 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     /** Returns true if the user was moved out of the feed. */
-    private fun act(pkg: String, decision: Decision): Boolean = when (decision) {
+    private fun act(pkg: String, decision: Decision): Boolean {
+        if (decision != Decision.Allow) log("${pkg.substringAfterLast('.')} decision: $decision")
+        return actInternal(pkg, decision)
+    }
+
+    private fun actInternal(pkg: String, decision: Decision): Boolean = when (decision) {
         Decision.Allow -> false
         is Decision.Block -> { record(pkg, blocked = 1); leaveFeed(pkg, toHome = false); showBlocked(decision.reason); true }
         is Decision.HardStop -> { record(pkg, blocked = 1); leaveFeed(pkg, toHome = true); showBlocked(decision.reason); true }
@@ -180,7 +214,9 @@ class FocusAccessibilityService : AccessibilityService() {
         val node = rootInActiveWindow?.findAccessibilityNodeInfosByViewId(urlBarId)?.firstOrNull() ?: return
         if (node.isFocused) return // user is typing
         val url = node.text?.toString() ?: return
-        val what = BrowserUrlMatcher.match(url, cfg.blockedDomains) ?: return
+        val what = BrowserUrlMatcher.match(url, cfg.blockedDomains)
+        log("${pkg.substringAfterLast('.')} url=$url → ${what ?: "allowed"}")
+        if (what == null) return
         if (url == lastBlockedUrl && now - lastBlockedUrlAt < 4_000L) return
         lastBlockedUrl = url; lastBlockedUrlAt = now; lastActionAt = now
         record(pkg, blocked = 1)
@@ -263,6 +299,7 @@ class FocusAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         running = false
+        instance = null
         handler.removeCallbacksAndMessages(null)
         if (::overlay.isInitialized) { flushFeedTime(); overlay.dismiss() }
         scope.cancel()

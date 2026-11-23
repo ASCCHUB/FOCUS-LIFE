@@ -38,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.focuslife.app.service.FocusAccessibilityService
 import com.focuslife.app.ui.*
+import com.focuslife.app.worker.ReminderWorker
 import com.focuslife.app.worker.UsageWorker
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -66,7 +67,7 @@ private val tabs = listOf(
         super.onCreate(savedInstanceState)
         UsageWorker.schedule(this)
         refreshPermissions()
-        val actions = PermissionActions(::openUsageSettings, ::openAccessibilitySettings, ::openAppInfo, ::requestNotifications, ::requestBattery)
+        val actions = PermissionActions(::openUsageSettings, ::openAccessibilitySettings, ::openAppInfo, ::requestNotifications, ::requestBattery, ::paymentMode)
         setContent {
             val vm: FocusViewModel = hiltViewModel()
             SideEffect { refreshCallback = vm::refresh }
@@ -127,6 +128,17 @@ private val tabs = listOf(
         Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
     )
 
+    /** Switches the accessibility service off so banking apps work; reminds the user to turn it back on. */
+    private fun paymentMode() {
+        if (FocusAccessibilityService.turnOffForPayment()) {
+            ReminderWorker.schedule(this)
+            android.widget.Toast.makeText(this, "Blocker off. Make your payment, then turn Focus Life back on in Accessibility.", android.widget.Toast.LENGTH_LONG).show()
+        } else {
+            openAccessibilitySettings()
+        }
+        window.decorView.postDelayed({ refreshPermissions() }, 800)
+    }
+
     private fun requestNotifications() {
         val prefs = getSharedPreferences("permission_requests", Context.MODE_PRIVATE)
         if (Build.VERSION.SDK_INT >= 33 && !prefs.getBoolean("notifications_asked", false)) {
@@ -169,9 +181,10 @@ private val tabs = listOf(
             composable("Settings") {
                 SettingsScreen(vm, perms, actions,
                     onRules = { nav.navigate("Rules") }, onSchedules = { nav.navigate("Schedules") },
-                    onGoals = { nav.navigate("Goals") }, onSleep = { nav.navigate("Sleep") })
+                    onGoals = { nav.navigate("Goals") }, onSleep = { nav.navigate("Sleep") }, onDetection = { nav.navigate("Detection") })
             }
-            composable("Rules") { RulesScreen(vm) }
+            composable("Rules") { RulesScreen(vm, onDetection = { nav.navigate("Detection") }) }
+            composable("Detection") { DetectionCheckScreen() }
             composable("Schedules") { SchedulesScreen(vm) }
             composable("Goals") { GoalsScreen(vm) }
             composable("Sleep") { SleepScreen(vm) }

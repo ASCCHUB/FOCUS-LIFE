@@ -17,10 +17,14 @@ object UsageMath {
     fun allowance(limitMinutes: Int, usedMs: Long, extensionMinutes: Int = 0): Long = ((limitMinutes + extensionMinutes) * 60_000L - usedMs).coerceAtLeast(0)
     fun warning(usedMs: Long, limitMinutes: Int, extensionMinutes: Int = 0): Int {
         val minutes = usedMs / 60_000L
+        // Early-warning stages: 20 and 10 min before the limit; for short limits, at 2/3 and 5/6 of it.
+        val first = if (limitMinutes >= 30) limitMinutes - 20 else limitMinutes * 2 / 3
+        val second = if (limitMinutes >= 30) limitMinutes - 10 else limitMinutes * 5 / 6
         return when {
             minutes >= limitMinutes + extensionMinutes -> 60
-            minutes >= limitMinutes - 10 -> 50
-            minutes >= limitMinutes - 20 -> 40
+            limitMinutes < 5 -> 0
+            minutes >= second -> 50
+            minutes >= first -> 40
             else -> 0
         }
     }

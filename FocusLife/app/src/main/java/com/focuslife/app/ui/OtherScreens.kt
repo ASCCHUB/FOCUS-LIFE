@@ -170,7 +170,7 @@ import java.util.Date
     }
 }
 
-@Composable fun SettingsScreen(vm: FocusViewModel, perms: PermissionState, actions: PermissionActions, onRules: () -> Unit, onSchedules: () -> Unit, onGoals: () -> Unit, onSleep: () -> Unit) {
+@Composable fun SettingsScreen(vm: FocusViewModel, perms: PermissionState, actions: PermissionActions, onRules: () -> Unit, onSchedules: () -> Unit, onGoals: () -> Unit, onSleep: () -> Unit, onDetection: () -> Unit) {
     val settings by vm.settings.collectAsState(); val light by vm.light.collectAsState()
     val cfg = vm.blocker.collectAsState().value ?: BlockerConfig()
     var confirm by remember { mutableStateOf(false) }
@@ -184,6 +184,8 @@ import java.util.Date
             ClickableRow("Daily goals", null, onGoals)
             HorizontalDivider()
             ClickableRow("Sleep routine", null, onSleep)
+            HorizontalDivider()
+            ClickableRow("Detection check", "See what the blocker detects (for troubleshooting)", onDetection)
         }
         AppCard {
             SwitchRow("Daily limit monitoring", null, settings?.monitoringEnabled ?: true, onChange = vm::toggleMonitoring)

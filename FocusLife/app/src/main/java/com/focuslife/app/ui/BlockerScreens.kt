@@ -5,7 +5,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -14,6 +17,8 @@ import com.focuslife.app.detection.ShortVideoRules
 import com.focuslife.app.domain.BlockerConfig
 import com.focuslife.app.domain.LimitAction
 import com.focuslife.app.domain.ScheduleMath
+import com.focuslife.app.service.FocusAccessibilityService
+import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 
 private val limitApps = listOf(
@@ -55,7 +60,10 @@ private val limitApps = listOf(
             }
             HorizontalDivider()
             Text("Daily limit: ${sliderValue.toInt()} min", fontWeight = FontWeight.SemiBold)
-            Slider(value = sliderValue, onValueChange = { sliderValue = it }, onValueChangeFinished = { vm.setLimit(sliderValue.toInt().coerceAtLeast(15)) }, valueRange = 15f..180f, steps = 10)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(1, 5, 15, 30, 60).forEach { m -> FilterChip(selected = sliderValue.toInt() == m, onClick = { sliderValue = m.toFloat(); vm.setLimit(m) }, label = { Text("$m") }) }
+            }
+            Slider(value = sliderValue, onValueChange = { sliderValue = it }, onValueChangeFinished = { vm.setLimit(sliderValue.toInt().coerceAtLeast(1)) }, valueRange = 1f..180f)
             Text("When my daily limit is reached", fontWeight = FontWeight.SemiBold)
             RadioGroup(LimitAction.entries, cfg.limitAction, { it.title }, { it.description }) { action -> vm.updateBlocker { it.copy(limitAction = action) } }
         }
@@ -63,7 +71,7 @@ private val limitApps = listOf(
 }
 
 /** Fine-tuning for each mode, the X rule and the browser blocker. */
-@Composable fun RulesScreen(vm: FocusViewModel) {
+@Composable fun RulesScreen(vm: FocusViewModel, onDetection: () -> Unit = {}) {
     val cfg = vm.blocker.collectAsState().value ?: BlockerConfig()
     var domain by remember { mutableStateOf("") }
     Page("Blocking rules") {
@@ -81,12 +89,16 @@ private val limitApps = listOf(
         AppCard {
             SwitchRow("Video limit on X", "Warn, then close X after a number of videos", cfg.xEnabled) { on -> vm.updateBlocker { it.copy(xEnabled = on) } }
             if (cfg.xEnabled) {
+                SwitchRow("Strict: only 1 video", "Swiping to the 2nd video closes X", cfg.xStopAfter == 2) { on ->
+                    vm.updateBlocker { it.copy(xStopAfter = if (on) 2 else 5, xWarnAfter = if (on) 1 else 2) }
+                }
                 Stepper("Warn after", cfg.xWarnAfter, 1..(cfg.xStopAfter - 1).coerceAtLeast(1), " videos") { v -> vm.updateBlocker { it.copy(xWarnAfter = v) } }
-                Stepper("Close X after", cfg.xStopAfter, 2..20, " videos") { v -> vm.updateBlocker { it.copy(xStopAfter = v, xWarnAfter = it.xWarnAfter.coerceAtMost(v - 1)) } }
+                Stepper("Close X at video no.", cfg.xStopAfter, 2..20, "") { v -> vm.updateBlocker { it.copy(xStopAfter = v, xWarnAfter = it.xWarnAfter.coerceAtMost(v - 1)) } }
                 Stepper("Break length", cfg.xCooldownMin, 1..120, " min") { v -> vm.updateBlocker { it.copy(xCooldownMin = v) } }
             }
             Text("Scheduled focus times use Block All for X too.", color = Muted, style = MaterialTheme.typography.bodySmall)
         }
+        OutlinedButton(onClick = onDetection, modifier = Modifier.fillMaxWidth()) { Text("X not blocked? Run a detection check") }
         Section("Browser blocker")
         AppCard {
             SwitchRow("Block video pages in browsers", "Facebook reels/watch, Instagram reels, YouTube Shorts, TikTok, X videos in Chrome, Samsung Internet, Edge, Firefox, Brave and Opera", cfg.browserEnabled) { on -> vm.updateBlocker { it.copy(browserEnabled = on) } }
@@ -221,5 +233,32 @@ private val limitApps = listOf(
         Text("Switch greyed out (\"Restricted setting\")?", fontWeight = FontWeight.SemiBold)
         Text("Try turning it on once, then tap below → ⋮ (top right) → Allow restricted settings → confirm. Come back and turn it on.", color = Muted, style = MaterialTheme.typography.bodySmall)
         OutlinedButton(onClick = actions.openAppInfo) { Text("Open App info") }
+    }
+}
+
+/** Shows what the blocker sees, so detection rules can be tuned for a specific phone and app version. */
+@Composable fun DetectionCheckScreen() {
+    var enabled by remember { mutableStateOf(FocusAccessibilityService.debugEnabled) }
+    var lines by remember { mutableStateOf(FocusAccessibilityService.debugSnapshot()) }
+    val clipboard = LocalClipboardManager.current
+    LaunchedEffect(enabled) { while (true) { lines = FocusAccessibilityService.debugSnapshot(); delay(1_000) } }
+    Page("Detection check", "See what the blocker detects in each app.") {
+        AppCard {
+            Text("1. Turn on recording below.\n2. Open X (or another app) and scroll a few videos.\n3. Come back here, tap Copy, and send the text for tuning.", color = Muted)
+            SwitchRow("Record what the blocker sees", "Only kept in memory; turn off when done", enabled) { on ->
+                enabled = on
+                FocusAccessibilityService.debugEnabled = on
+                if (on) FocusAccessibilityService.clearDebug()
+            }
+            if (!FocusAccessibilityService.running) Text("The blocker service isn't running. Turn on Accessibility for Focus Life first.", color = Amber)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { clipboard.setText(AnnotatedString(lines.joinToString("\n"))) }, enabled = lines.isNotEmpty()) { Text("Copy") }
+                OutlinedButton(onClick = { FocusAccessibilityService.clearDebug(); lines = emptyList() }) { Text("Clear") }
+            }
+        }
+        AppCard {
+            if (lines.isEmpty()) Text("Nothing recorded yet.", color = Muted)
+            lines.forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
+        }
     }
 }

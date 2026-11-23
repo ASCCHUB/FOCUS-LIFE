@@ -34,6 +34,7 @@ import java.util.Date
     val paused = cfg.isPaused(now)
     val startOfDay = remember { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
     var pauseDialog by remember { mutableStateOf(false) }
+    var paymentDialog by remember { mutableStateOf(false) }
 
     Page("Focus Life", "Reclaim your focus today.") {
         if (!perms.allGranted || !perms.serviceRunning) PermissionsCard(perms, actions, showAll = false)
@@ -59,10 +60,18 @@ import java.util.Date
         BlockMode.entries.forEach { mode -> ModeCard(mode, cfg, selected = cfg.mode == mode) { vm.updateBlocker { it.copy(mode = mode) } } }
         if (schedules.any { it.enabled }) Text("Scheduled focus times switch to Block All automatically.", color = Muted, style = MaterialTheme.typography.bodySmall)
         OutlinedButton(onClick = onSchedules, modifier = Modifier.fillMaxWidth()) { Text("Focus schedules") }
+        if (perms.accessibility) OutlinedButton(onClick = { paymentDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("💳  Payment mode") }
 
         DailyAllowance(vm, perms)
         GoalsSummary(vm, onGoals)
     }
+    if (paymentDialog) AlertDialog(
+        onDismissRequest = { paymentDialog = false },
+        title = { Text("Payment mode") },
+        text = { Text("Some banking and payment apps refuse to open while an accessibility service is on. This switches the blocker off so you can pay. Turn it back on afterwards in Settings → Accessibility → Focus Life. We'll remind you in 10 minutes.") },
+        confirmButton = { Button(onClick = { paymentDialog = false; actions.paymentMode() }) { Text("Turn off for payment") } },
+        dismissButton = { TextButton(onClick = { paymentDialog = false }) { Text("Cancel") } },
+    )
     if (pauseDialog) PauseDialog(onDismiss = { pauseDialog = false }, onPause = { minutes -> vm.pauseFor(minutes); pauseDialog = false })
 }
 

@@ -4,26 +4,36 @@ import com.focuslife.app.domain.BlockerConfig
 
 /**
  * Per-app detection rules. View IDs change when apps update; edit them here.
- * Apps without known IDs rely on the scroll heuristic in [ShortVideoDetector].
+ * feedViewIds: exact IDs. idHints: parts of an ID; a visible element whose ID contains a hint and
+ * fills most of the screen counts as the short-video feed.
+ * useScrollHeuristic: also treat a full-screen, one-item-at-a-time vertical list as a feed.
+ * (Off for YouTube so normal videos are never affected.)
  */
 data class AppRule(
     val packageName: String,
     val label: String,
     val feedViewIds: List<String> = emptyList(),
+    val idHints: List<String> = emptyList(),
     val wholeAppIsFeed: Boolean = false,
+    val useScrollHeuristic: Boolean = true,
 )
 
 object ShortVideoRules {
     private fun ids(pkg: String, vararg names: String) = names.map { "$pkg:id/$it" }
 
     val apps: Map<String, AppRule> = listOf(
-        AppRule(BlockerConfig.YOUTUBE, "YouTube Shorts", ids(BlockerConfig.YOUTUBE, "reel_recycler", "reel_player_page_container", "reel_watch_player", "shorts_container")),
-        AppRule(BlockerConfig.INSTAGRAM, "Instagram Reels", ids(BlockerConfig.INSTAGRAM, "clips_viewer_view_pager", "clips_viewer_container", "root_clips_layout")),
-        AppRule(BlockerConfig.FACEBOOK, "Facebook Reels"),
+        AppRule(BlockerConfig.YOUTUBE, "YouTube Shorts",
+            ids(BlockerConfig.YOUTUBE, "reel_recycler", "reel_player_page_container", "reel_watch_player", "shorts_container"),
+            idHints = listOf("reel_", "shorts_player"), useScrollHeuristic = false),
+        AppRule(BlockerConfig.INSTAGRAM, "Instagram Reels",
+            ids(BlockerConfig.INSTAGRAM, "clips_viewer_view_pager", "clips_viewer_container", "root_clips_layout"),
+            idHints = listOf("clips_viewer", "clips_video")),
+        AppRule(BlockerConfig.FACEBOOK, "Facebook Reels", idHints = listOf("reels_viewer", "fb_shorts", "video_home_reels")),
         AppRule(BlockerConfig.TIKTOK, "TikTok", wholeAppIsFeed = true),
         AppRule(BlockerConfig.TIKTOK_ALT, "TikTok", wholeAppIsFeed = true),
-        AppRule(BlockerConfig.SNAPCHAT, "Snapchat Spotlight", ids(BlockerConfig.SNAPCHAT, "spotlight_container", "spotlight_view_pager")),
-        AppRule(BlockerConfig.X, "X videos", ids(BlockerConfig.X, "immersive_video_player", "immersive_viewpager")),
+        AppRule(BlockerConfig.SNAPCHAT, "Snapchat Spotlight", ids(BlockerConfig.SNAPCHAT, "spotlight_container", "spotlight_view_pager"), idHints = listOf("spotlight")),
+        AppRule(BlockerConfig.X, "X videos", ids(BlockerConfig.X, "immersive_video_player", "immersive_viewpager"),
+            idHints = listOf("immersive", "media_viewer", "fullscreen_video", "explore_video")),
     ).associateBy { it.packageName }
 
     /** Browser package -> address bar view ID. */
@@ -40,7 +50,7 @@ object ShortVideoRules {
 
     /** Apps shown on the Apps tab (TikTok's two package names are one entry). */
     val userFacing: List<Pair<String, String>> = listOf(
-        BlockerConfig.YOUTUBE to "YouTube Shorts",
+        BlockerConfig.YOUTUBE to "YouTube Shorts (normal videos stay allowed)",
         BlockerConfig.INSTAGRAM to "Instagram Reels",
         BlockerConfig.FACEBOOK to "Facebook Reels",
         BlockerConfig.TIKTOK to "TikTok",

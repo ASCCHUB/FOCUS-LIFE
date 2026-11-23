@@ -1,4 +1,7 @@
+<!-- The service only receives events from these apps (keep in sync with ShortVideoRules.kt).
+     Banking and other apps are never observed. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:packageNames="com.google.android.youtube,com.instagram.android,com.facebook.katana,com.zhiliaoapp.musically,com.ss.android.ugc.trill,com.snapchat.android,com.twitter.android,com.android.chrome,com.chrome.beta,com.brave.browser,com.microsoft.emmx,com.sec.android.app.sbrowser,org.mozilla.firefox,com.opera.browser,com.opera.mini.native"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagIncludeNotImportantViews"

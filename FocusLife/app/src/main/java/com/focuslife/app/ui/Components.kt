@@ -39,6 +39,7 @@ class PermissionActions(
     val openAppInfo: () -> Unit,
     val requestNotifications: () -> Unit,
     val requestBattery: () -> Unit,
+    val paymentMode: () -> Unit,
 )
 
 @Composable fun Page(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {

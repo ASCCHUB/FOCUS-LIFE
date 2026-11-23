@@ -129,3 +129,15 @@ class ScheduleMathTest {
         assertEquals("06:05", ScheduleMath.format(6 * 60 + 5))
     }
 }
+
+class ShortLimitWarningTest {
+    @Test fun oneMinuteLimitHasNoEarlyWarnings() {
+        assertEquals(0, com.focuslife.app.domain.UsageMath.warning(0L, 1))
+        assertEquals(60, com.focuslife.app.domain.UsageMath.warning(60_000L, 1))
+    }
+    @Test fun strictXClosesOnSecondVideo() {
+        val p = BlockPolicy(); val cfg = BlockerConfig(xStopAfter = 2, xWarnAfter = 1)
+        assertEquals(Decision.Allow, p.onEnterFeed(BlockerConfig.X, cfg, 1_000L, false))
+        assertTrue(p.onNewVideo(BlockerConfig.X, cfg, 2_000L, false) is Decision.HardStop)
+    }
+}

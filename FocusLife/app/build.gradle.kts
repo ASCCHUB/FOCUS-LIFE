@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.focuslife.app"
     compileSdk = 35
-    defaultConfig { applicationId = "com.focuslife.app"; minSdk = 29; targetSdk = 35; versionCode = 2; versionName = "0.2.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    defaultConfig { applicationId = "com.focuslife.app"; minSdk = 29; targetSdk = 35; versionCode = 4; versionName = "0.2.2"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
